@@ -1,5 +1,5 @@
 use polars::prelude::*;
-use pyo3_polars::export::polars_core::utils::align_chunks_binary;
+use pyo3_polars::export::polars_core::utils::align_chunks_binary_ca_series;
 use pyo3_polars::export::polars_arrow::array::ListArray;
 use pyo3_polars::derive::polars_expr;
 
@@ -8,15 +8,14 @@ fn implode_like(
     target_series: &Series,
     layout_series: &Series,
 ) -> PolarsResult<Series> {
-    let target_ca = target_series.unpack::<Float32Type>()?;
     let layout_ca = layout_series.list()?;
 
-    let (target_aligned_ca, layout_aligned_ca) = align_chunks_binary(
-        target_ca,
+    let (layout_aligned_ca, target_aligned_series) = align_chunks_binary_ca_series(
         layout_ca,
+        target_series,
     );
 
-    let new_chunks_iter = target_aligned_ca
+    let new_chunks_iter = target_aligned_series
         .chunks()
         .iter()
         .zip(
@@ -26,12 +25,12 @@ fn implode_like(
             ListArray::new(
                 DataType::List(
                     Box::new(
-                        target_ca.dtype().clone()
+                        target_series.dtype().clone()
                     )
                 ).to_arrow(CompatLevel::newest()),
                 layout_chunk.offsets().clone(),
                 target_chunk.clone(),
-                None,
+                target_chunk.validity().cloned(),
             )
         });
 
@@ -42,7 +41,6 @@ fn implode_like(
 
     Ok(new_ca.into_series())
 }
-
 
 
 #[polars_expr(output_type=Float32)]
