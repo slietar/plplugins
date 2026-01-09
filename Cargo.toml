@@ -8,7 +8,8 @@ name = "expression_lib"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { version = "*" }
+polars = { version = "*", features = ["polars-ops", "dtype-struct"]  }
+polars-ops = { version = "0.52.0", features = ["cum_agg"] }
 pyo3 = { version = "*", features = ["extension-module", "abi3-py38"] }
 pyo3-polars = { version = "*", features = ["derive"] }
 serde = { version = "*", features = ["derive"] }
