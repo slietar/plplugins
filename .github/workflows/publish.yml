@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - '*'
-    branches:
-      - master
 
 permissions:
   contents: read
@@ -36,7 +34,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
-          name: wheels-linux-${{ matrix.platform.target }}
+          name: wheels-linux
           path: dist
 
   build-macos:
@@ -55,19 +53,25 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
-          name: wheels-macos-${{ matrix.platform.target }}
+          name: wheels-macos
           path: dist
 
-  # upload:
-  #   name: Publish package distributions to PyPI
-  #   runs-on: ubuntu-latest
-  #   needs: [build-linux, build-macos]
-  #   environment:
-  #     name: pypi
-  #     url: https://pypi.org/p/plutils
-  #   permissions:
-  #     id-token: write
-  #   steps:
-  #     - uses: actions/download-artifact@v6
-  #     - name: Publish package distributions to PyPI
-  #       uses: pypa/gh-action-pypi-publish@release/v1
+  upload:
+    name: Publish package distributions to PyPI
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/plutils
+    permissions:
+      id-token: write
+    steps:
+      - name: Download wheels
+        uses: actions/download-artifact@v6
+      - name: Move wheels
+        run: |
+          mkdir dist
+          mv wheels-linux/* dist/
+          mv wheels-macos/* dist/
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

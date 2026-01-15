@@ -5,7 +5,7 @@ import polars as pl
 from polars._typing import IntoExpr, PythonLiteral
 from polars.plugins import register_plugin_function
 
-from . import plutils as lib  # type: ignore
+from . import extension # type: ignore
 
 
 PLUGIN_PATH = Path(__file__).parent
@@ -23,7 +23,7 @@ def get_offsets(target: pl.Series, /) -> pl.Series:
 
 def get_offsets(target: ExprLike | pl.Series, /):
     if isinstance(target, pl.Series):
-        return lib.get_offsets(target)
+        return extension.get_offsets(target)
 
     return register_plugin_function(
         plugin_path=PLUGIN_PATH,
@@ -48,7 +48,7 @@ def implode_like(target: pl.Series, /, layout: pl.Series) -> pl.Series:
 
 def implode_like(target: ExprLike | pl.Series, /, layout: IntoExpr | pl.Series):
     if isinstance(target, pl.Series) and isinstance(layout, pl.Series):
-        return lib.implode_like(target, layout)
+        return extension.implode_like(target, layout)
 
     return register_plugin_function(
         plugin_path=PLUGIN_PATH,
@@ -73,7 +73,7 @@ def implode_with_lengths(target: pl.Series, /, lengths: pl.Series) -> pl.Series:
 
 def implode_with_lengths(target: ExprLike | pl.Series, /, lengths: IntoExpr | pl.Series):
     if isinstance(target, pl.Series) and isinstance(lengths, pl.Series):
-        return lib.implode_with_lengths(target, lengths)
+        return extension.implode_with_lengths(target, lengths)
 
     return register_plugin_function(
         plugin_path=PLUGIN_PATH,
@@ -98,7 +98,7 @@ def implode_with_offsets(target: pl.Series, /, offsets: pl.Series) -> pl.Series:
 
 def implode_with_offsets(target: ExprLike | pl.Series, /, offsets: IntoExpr | pl.Series):
     if isinstance(target, pl.Series) and isinstance(offsets, pl.Series):
-        return lib.implode_with_offsets(target, offsets)
+        return extension.implode_with_offsets(target, offsets)
 
     return register_plugin_function(
         plugin_path=PLUGIN_PATH,

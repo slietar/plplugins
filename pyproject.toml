@@ -17,6 +17,10 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/slietar/plutils"
 
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+module-name = "plutils.extension"
+
 [tool.uv]
 cache-keys = [
     { file = "pyproject.toml" },

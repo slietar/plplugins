@@ -1,5 +1,5 @@
 __pycache__
 *.so
-/target
+/rust/target
 Cargo.lock
 uv.lock

@@ -39,7 +39,7 @@ fn implode_with_offsets(target_series: PySeries, offsets_series: PySeries) -> Py
 }
 
 #[pymodule]
-fn plutils(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn extension(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(pyo3::wrap_pyfunction!(get_offsets, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(implode_like, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(implode_with_lengths, m)?)?;
