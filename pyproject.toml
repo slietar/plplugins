@@ -4,7 +4,7 @@ build-backend = "oryn"
 
 [project]
 name = "plplugins"
-version = "0.0"
+version = "1.0"
 description = "Collection of utilities for working with Polars"
 license = "EUPL-1.2"
 readme = "readme.md"
