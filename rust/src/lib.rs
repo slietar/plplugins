@@ -8,6 +8,14 @@ use pyo3_polars::error::PyPolarsErr;
 use pyo3_polars::PySeries;
 
 #[pyfunction]
+fn cast_arr_to_struct(target_series: PySeries, struct_like_series: PySeries) -> PyResult<PySeries> {
+    Ok(PySeries(
+        functions::cast_arr_to_struct(&target_series.into(), &struct_like_series.into())
+            .map_err(PyPolarsErr::from)?,
+    ))
+}
+
+#[pyfunction]
 fn get_offsets(series: PySeries) -> PyResult<PySeries> {
     Ok(PySeries(
         functions::get_offsets(&series.into()).map_err(PyPolarsErr::from)?,
@@ -40,6 +48,7 @@ fn implode_with_offsets(target_series: PySeries, offsets_series: PySeries) -> Py
 
 #[pymodule]
 fn extension(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_function(pyo3::wrap_pyfunction!(cast_arr_to_struct, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(get_offsets, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(implode_like, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(implode_with_lengths, m)?)?;

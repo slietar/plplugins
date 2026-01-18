@@ -8,7 +8,8 @@ name = "plutils"
 crate-type = ["cdylib"]
 
 [dependencies]
-polars = { version = "*", features = ["polars-ops", "dtype-struct"]  }
+polars = { version = "*", features = ["dtype-array", "dtype-struct", "polars-ops"]  }
+polars-compute = { version = "0.52.0" }
 polars-ops = { version = "0.52.0", features = ["cum_agg"] }
 pyo3 = { version = "*", features = ["extension-module", "abi3-py310"] }
 pyo3-polars = { version = "*", features = ["derive"] }
