@@ -5,7 +5,10 @@ use pyo3_polars::export::polars_arrow::buffer::Buffer;
 use pyo3_polars::export::polars_arrow::offset::OffsetsBuffer;
 use pyo3_polars::export::polars_core::utils::{align_chunks_binary_ca_series, Container};
 
-pub fn cast_arr_to_struct(target_series: &Series, struct_like_series: &Series) -> PolarsResult<Series> {
+pub fn cast_arr_to_struct(
+    target_series: &Series,
+    struct_like_series: &Series,
+) -> PolarsResult<Series> {
     let arr = target_series.array()?;
     let struct_like = struct_like_series.struct_()?;
 
@@ -15,31 +18,23 @@ pub fn cast_arr_to_struct(target_series: &Series, struct_like_series: &Series) -
                 "Cannot cast array of width {} to struct of width {}",
                 arr.width(),
                 struct_like.struct_fields().len(),
-            ).into(),
+            )
+            .into(),
         ));
     }
 
-    let new_chunks_iter = arr
-        .downcast_iter()
-        .map(|chunk| {
-            StructArray::new(
-                struct_like
-                    .dtype()
-                    .to_arrow(CompatLevel::newest()),
-                arr.len(),
-                (0..arr.width())
-                    .map(|index| sub_fixed_size_list_get_literal(chunk, index as i64, false).unwrap())
-                    .collect::<Vec<_>>(),
-                chunk
-                    .validity()
-                    .cloned(),
-            )
-        });
+    let new_chunks_iter = arr.downcast_iter().map(|chunk| {
+        StructArray::new(
+            struct_like.dtype().to_arrow(CompatLevel::newest()),
+            arr.len(),
+            (0..arr.width())
+                .map(|index| sub_fixed_size_list_get_literal(chunk, index as i64, false).unwrap())
+                .collect::<Vec<_>>(),
+            chunk.validity().cloned(),
+        )
+    });
 
-    let new_ca = StructChunked::from_chunk_iter(
-        target_series.name().clone(),
-        new_chunks_iter,
-    );
+    let new_ca = StructChunked::from_chunk_iter(target_series.name().clone(), new_chunks_iter);
 
     Ok(new_ca.into_series())
 }

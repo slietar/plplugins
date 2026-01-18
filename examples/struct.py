@@ -1,5 +1,6 @@
-import plutils
 import polars as pl
+
+import plutils
 
 
 x = pl.Series("x", [

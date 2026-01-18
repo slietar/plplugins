@@ -56,6 +56,20 @@ fn extension(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+fn cast_arr_to_struct_output(input_fields: &[Field]) -> PolarsResult<Field> {
+    let struct_like_field = &input_fields[1];
+
+    Ok(Field::new(
+        input_fields[0].name().clone(),
+        struct_like_field.dtype().clone(),
+    ))
+}
+
+#[polars_expr(output_type_func=cast_arr_to_struct_output)]
+fn cast_arr_to_struct_expr(inputs: &[Series]) -> PolarsResult<Series> {
+    functions::cast_arr_to_struct(&inputs[0], &inputs[1])
+}
+
 fn implode_output(input_fields: &[Field]) -> PolarsResult<Field> {
     Ok(input_fields[0].clone())
 }

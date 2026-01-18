@@ -1,9 +1,9 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import TypeAlias, overload
+from typing import Optional, TypeAlias, overload
 
 import polars as pl
-from polars._typing import IntoExpr, NonNestedLiteral
+from polars._typing import NonNestedLiteral
 from polars.plugins import register_plugin_function
 
 from . import extension # type: ignore
@@ -12,6 +12,56 @@ from . import extension # type: ignore
 PLUGIN_PATH = Path(__file__).parent
 
 ExprLike: TypeAlias = NonNestedLiteral | pl.Expr | str
+NonLiteralExprLike: TypeAlias = pl.Expr | str
+
+
+@overload
+def cast_arr_to_struct(target: ExprLike, /, *, dtype: pl.DataTypeExpr | pl.Struct) -> pl.Expr:
+    ...
+
+@overload
+def cast_arr_to_struct(target: pl.Series, /, *, dtype: pl.DataTypeExpr) -> pl.Expr:
+    ...
+
+@overload
+def cast_arr_to_struct(target: ExprLike, /, *, like: NonLiteralExprLike | pl.Series) -> pl.Expr:
+    ...
+
+@overload
+def cast_arr_to_struct(target: pl.Series, /, *, like: NonLiteralExprLike) -> pl.Expr:
+    ...
+
+@overload
+def cast_arr_to_struct(target: pl.Series, /, *, dtype: pl.Struct) -> pl.Series:
+    ...
+
+@overload
+def cast_arr_to_struct(target: pl.Series, /, *, like: pl.Series) -> pl.Series:
+    ...
+
+def cast_arr_to_struct(
+    target: ExprLike | pl.Series,
+    /, *,
+    dtype: Optional[pl.DataTypeExpr | pl.Struct] = None,
+    like: Optional[NonLiteralExprLike | pl.Series] = None,
+) -> pl.Expr | pl.Series:
+    assert (dtype is not None) != (like is not None)
+
+    if isinstance(target, pl.Series) and (isinstance(dtype, pl.Struct) or isinstance(like, pl.Series)):
+        return extension.cast_arr_to_struct(target, like)
+
+    if dtype is not None:
+        effective_struct_like = pl.lit(pl.Series([])).cast(dtype)
+    else:
+        effective_struct_like = like
+
+    return register_plugin_function(
+        plugin_path=PLUGIN_PATH,
+        function_name="cast_arr_to_struct_expr",
+        args=(target, effective_struct_like),
+        is_elementwise=True,
+        changes_length=False,
+    )
 
 
 @overload
@@ -47,7 +97,7 @@ def implode_like(target: ExprLike, /, layout: ExprLike | pl.Series) -> pl.Expr:
 def implode_like(target: pl.Series, /, layout: pl.Series) -> pl.Series:
     ...
 
-def implode_like(target: ExprLike | pl.Series, /, layout: IntoExpr | pl.Series):
+def implode_like(target: ExprLike | pl.Series, /, layout: ExprLike | pl.Series):
     if isinstance(target, pl.Series) and isinstance(layout, pl.Series):
         return extension.implode_like(target, layout)
 
@@ -72,7 +122,7 @@ def implode_with_lengths(target: ExprLike, /, lengths: ExprLike | pl.Series) -> 
 def implode_with_lengths(target: pl.Series, /, lengths: pl.Series) -> pl.Series:
     ...
 
-def implode_with_lengths(target: ExprLike | pl.Series, /, lengths: IntoExpr | pl.Series):
+def implode_with_lengths(target: ExprLike | pl.Series, /, lengths: ExprLike | pl.Series):
     if isinstance(target, pl.Series) and isinstance(lengths, pl.Series):
         return extension.implode_with_lengths(target, lengths)
 
@@ -97,7 +147,7 @@ def implode_with_offsets(target: ExprLike, /, offsets: ExprLike | pl.Series) -> 
 def implode_with_offsets(target: pl.Series, /, offsets: pl.Series) -> pl.Series:
     ...
 
-def implode_with_offsets(target: ExprLike | pl.Series, /, offsets: IntoExpr | pl.Series):
+def implode_with_offsets(target: ExprLike | pl.Series, /, offsets: ExprLike | pl.Series):
     if isinstance(target, pl.Series) and isinstance(offsets, pl.Series):
         return extension.implode_with_offsets(target, offsets)
 
@@ -158,13 +208,17 @@ def zip(*targets: pl.Series | Iterable[pl.Series]):
 
     return implode_like(
         struct(
-            target.list.explode() for target in effective_targets
+            target.list.explode(
+                empty_as_null=False,
+                keep_nulls=False,
+            ) for target in effective_targets
         ),
         layout=effective_targets[0],
     )
 
 
 __all__ = [
+    "cast_arr_to_struct",
     "get_offsets",
     "implode_like",
     "implode_with_lengths",
