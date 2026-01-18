@@ -1,9 +1,11 @@
-name: Upload release to PyPI
+name: Publish release
 
 on:
   push:
     tags:
       - '*'
+    branches:
+      - master
 
 permissions:
   contents: read
@@ -15,22 +17,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      - name: Install Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-      - name: Build wheel for x86_64
-        uses: PyO3/maturin-action@v1
-        with:
-          target: x86_64
-          args: --release --out dist --zig
-          sccache: true
-      - name: Build wheel armv7
-        uses: PyO3/maturin-action@v1
-        with:
-          target: armv7
-          args: --release --out dist --zig
-          sccache: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Install Rust targets
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          rustup target add x86_64-unknown-linux-gnu
+      - name: Install linker
+        run: |
+          sudo apt install --yes gcc-aarch64-linux-gnu
+      - name: Build dynamic libraries
+        run: |
+          uv run --no-project --python 3.12 cargo build --target aarch64-unknown-linux-gnu
+          uv run --no-project --python 3.12 cargo build --target x86_64-unknown-linux-gnu
+        working-directory: rust
+      - name: Build wheels
+        run: uv build --wheel --config-setting distributions=linux-aarch64,linux-x86_64
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
@@ -41,37 +43,38 @@ jobs:
     name: Build on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-      - name: Build wheel
-        uses: PyO3/maturin-action@v1
-        with:
-          target: aarch64-apple-darwin
-          args: --release --out dist --zig
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Build dynamic libraries
+        run: |
+          uv run --no-project --python 3.12 cargo build --target aarch64-apple-darwin
+        working-directory: rust
+      - name: Build wheels
+        run: uv build --wheel --config-setting distributions=macos
       - name: Upload wheels
         uses: actions/upload-artifact@v5
         with:
           name: wheels-macos
           path: dist
 
-  upload:
-    name: Publish package distributions to PyPI
-    runs-on: ubuntu-latest
-    needs: [build-linux, build-macos]
-    environment:
-      name: pypi
-      url: https://pypi.org/p/plutils
-    permissions:
-      id-token: write
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v6
-      - name: Move wheels
-        run: |
-          mkdir dist
-          mv wheels-linux/* dist/
-          mv wheels-macos/* dist/
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  # upload:
+  #   name: Publish package distributions to PyPI
+  #   runs-on: ubuntu-latest
+  #   needs: [build-linux, build-macos]
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/plutils
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #     - name: Download wheels
+  #       uses: actions/download-artifact@v6
+  #     - name: Move wheels
+  #       run: |
+  #         mkdir dist
+  #         mv wheels-linux/* dist/
+  #         mv wheels-macos/* dist/
+  #     - name: Publish package distributions to PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1

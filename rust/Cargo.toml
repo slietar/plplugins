@@ -13,3 +13,6 @@ polars-ops = { version = "0.52.0", features = ["cum_agg"] }
 pyo3 = { version = "*", features = ["extension-module", "abi3-py310"] }
 pyo3-polars = { version = "*", features = ["derive"] }
 serde = { version = "*", features = ["derive"] }
+
+[build-dependencies]
+pyo3-build-config = "0.27.2"
