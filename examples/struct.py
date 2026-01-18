@@ -1,6 +1,6 @@
 import polars as pl
 
-import plutils
+import plplugins
 
 
 x = pl.Series("x", [
@@ -13,5 +13,5 @@ y = pl.Series("y", [
     ["d", "e"],
 ])
 
-print(plutils.struct([x, y]).struct.unnest())
-print(plutils.struct(x, y).struct.unnest())
+print(plplugins.struct([x, y]).struct.unnest())
+print(plplugins.struct(x, y).struct.unnest())

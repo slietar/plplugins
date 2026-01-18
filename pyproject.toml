@@ -3,7 +3,7 @@ requires = ["oryn~=2.1"]
 build-backend = "oryn"
 
 [project]
-name = "plutils"
+name = "plplugins"
 version = "0.0"
 description = "Collection of utilities for working with Polars"
 license = "EUPL-1.2"
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/slietar/plutils"
+Repository = "https://github.com/slietar/plplugins"
 
 [tool.oryn]
 abi = "abi3"
@@ -25,17 +25,17 @@ include = ["src/*"]
 [[tool.oryn.distributions]]
 name = "macos"
 platform = "macosx_14_0_arm64"
-overrides = { "src/plutils/extension.abi3.so" = "rust/target/aarch64-apple-darwin/debug/libplutils.dylib" }
+overrides = { "src/plplugins/extension.abi3.so" = "rust/target/aarch64-apple-darwin/debug/libplplugins.dylib" }
 
 [[tool.oryn.distributions]]
 name = "linux-x86_64"
 platform = "manylinux2014_x86_64"
-overrides = { "src/plutils/extension.abi3.so" = "rust/target/x86_64-unknown-linux-gnu/debug/libplutils.so" }
+overrides = { "src/plplugins/extension.abi3.so" = "rust/target/x86_64-unknown-linux-gnu/debug/libplplugins.so" }
 
 [[tool.oryn.distributions]]
 name = "linux-aarch64"
 platform = "manylinux2014_aarch64"
-overrides = { "src/plutils/extension.abi3.so" = "rust/target/aarch64-unknown-linux-gnu/debug/libplutils.so" }
+overrides = { "src/plplugins/extension.abi3.so" = "rust/target/aarch64-unknown-linux-gnu/debug/libplplugins.so" }
 
 [tool.uv]
 cache-keys = [

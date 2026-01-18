@@ -6,7 +6,7 @@ from typing import Optional
 import polars as pl
 from polars import col as c
 
-import plutils
+import plplugins
 
 
 pl.Config.set_verbose(True)
@@ -28,9 +28,9 @@ def example1():
     print(
         df.select(
             c.a,
-            b=plutils.implode_with_offsets(
+            b=plplugins.implode_with_offsets(
                 df["a"].list.explode(),
-                plutils.get_offsets(c.a).alias("offsets"),
+                plplugins.get_offsets(c.a).alias("offsets"),
             )
         )
     )
@@ -44,7 +44,7 @@ def example2():
         bins[random.randrange(4)] += 1
 
     series = pl.Series([random.random() for _ in range(item_count)])
-    series_binned = plutils.implode_with_lengths(series, pl.Series(bins))
+    series_binned = plplugins.implode_with_lengths(series, pl.Series(bins))
 
     print(bins)
     print(series_binned.list.len())
@@ -72,7 +72,7 @@ def benchmark():
         res1 = (
             df1.select(
                 c.a,
-                b=plutils.implode_like(
+                b=plplugins.implode_like(
                     c.a.list.explode() * 2,
                     c.a,
                 ),

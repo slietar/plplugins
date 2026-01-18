@@ -1,6 +1,6 @@
 import polars as pl
 
-import plutils
+import plplugins
 
 
 x = pl.Series("x", [
@@ -13,4 +13,4 @@ y = pl.Series("y", [
     ["d", "e"],
 ])
 
-print(plutils.zip(x, y))
+print(plplugins.zip(x, y))

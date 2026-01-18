@@ -1,10 +1,10 @@
 [package]
-name = "plutils"
-version = "0.1.0"
+name = "plplugins"
+version = "0.0.0"
 edition = "2021"
 
 [lib]
-name = "plutils"
+name = "plplugins"
 crate-type = ["cdylib"]
 
 [dependencies]
