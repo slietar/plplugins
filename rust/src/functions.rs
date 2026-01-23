@@ -52,10 +52,10 @@ pub fn get_offsets(series: &Series) -> PolarsResult<Series> {
         }
     }
 
-    let mut offsets = Series::from_vec(name, vec![0]);
+    let mut offsets = Series::from_vec(name, vec![0i64]);
 
     offsets.append(&cum_sum(
-        &Series::new(PlSmallStr::EMPTY, list.lst_lengths()),
+        &Series::new(PlSmallStr::EMPTY, list.lst_lengths()).cast(&DataType::Int64)?,
         false,
     )?)?;
 
@@ -124,7 +124,7 @@ pub fn implode_with_lengths(
 
     let mut offsets = Series::from_vec(PlSmallStr::EMPTY, vec![0i64]);
 
-    offsets.append(&cum_sum(&lengths_series, false)?)?;
+    offsets.append(&cum_sum(&lengths_series.cast(&DataType::Int64)?, false)?)?;
 
     implode_with_offsets(target_series, &offsets)
 }

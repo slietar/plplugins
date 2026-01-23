@@ -50,6 +50,15 @@ def example2():
     print(series_binned.list.len())
 
 
+def example3():
+    print(
+        plplugins.implode_with_lengths(
+            pl.Series([1, 2, 3]),
+            lengths=pl.Series([2, 1], dtype=pl.UInt32),
+        ),
+    )
+
+
 def benchmark():
     @contextlib.contextmanager
     def measure(name: Optional[str] = None):
@@ -95,4 +104,5 @@ def benchmark():
 
 example1()
 example2()
+example3()
 benchmark()
