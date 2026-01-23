@@ -116,14 +116,7 @@ pub fn implode_with_lengths(
     target_series: &Series,
     lengths_series: &Series,
 ) -> PolarsResult<Series> {
-    if lengths_series.has_nulls() {
-        return Err(PolarsError::ComputeError(
-            "Lengths series must not contain null values".into(),
-        ));
-    }
-
     let mut offsets = Series::from_vec(PlSmallStr::EMPTY, vec![0i64]);
-
     offsets.append(&cum_sum(&lengths_series.cast(&DataType::Int64)?, false)?)?;
 
     implode_with_offsets(target_series, &offsets)
@@ -139,9 +132,28 @@ pub fn implode_with_offsets(
     let cast_offsets_series = offsets_series.cast(&DataType::Int64)?;
     let offsets_ca = cast_offsets_series.i64().unwrap();
 
-    if offsets_ca.first().unwrap() != 0 {
+    if offsets_ca.has_nulls() {
+        return Err(PolarsError::ComputeError(
+            "Offsets series must not contain null values".into(),
+        ));
+    }
+
+    if offsets_ca.len() == 0 || offsets_ca.first().unwrap() != 0 {
         return Err(PolarsError::ShapeMismatch(
-            "Offsets must start at zero".into(),
+            "First offset must be zero".into(),
+        ));
+    }
+
+    let last_offset = offsets_ca.last().unwrap();
+
+    if last_offset != (target_series.len() as i64) {
+        return Err(PolarsError::ShapeMismatch(
+            format!(
+                "Last offset ({}) must equal target series length ({})",
+                last_offset,
+                target_series.len(),
+            )
+            .into(),
         ));
     }
 
