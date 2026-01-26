@@ -68,12 +68,14 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
     let (layout_aligned_ca, target_aligned_series) =
         align_chunks_binary_ca_series(layout_ca, target_series);
 
-    if layout_ca.inner_length() != target_series.len() {
+    let layout_inner_length = layout_aligned_ca.lst_lengths().sum().unwrap_or(0) as usize;
+
+    if layout_inner_length != target_series.len() {
         return Err(PolarsError::ShapeMismatch(
             format!(
                 "Target series length ({}) does not match layout inner length ({})",
                 target_series.len(),
-                layout_ca.inner_length(),
+                layout_inner_length,
             )
             .into(),
         ));
