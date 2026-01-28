@@ -1,6 +1,6 @@
 use polars::prelude::*;
 use polars_compute::gather::sublist::fixed_size_list::sub_fixed_size_list_get_literal;
-use pyo3_polars::export::polars_arrow::array::{ListArray, StructArray};
+use pyo3_polars::export::polars_arrow::array::{Array, ListArray, StructArray};
 use pyo3_polars::export::polars_arrow::buffer::Buffer;
 use pyo3_polars::export::polars_arrow::offset::OffsetsBuffer;
 use pyo3_polars::export::polars_core::utils::{align_chunks_binary_ca_series, Container};
@@ -81,7 +81,7 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
         ));
     }
 
-    let new_chunks_iter = target_aligned_series
+    let new_chunks = target_aligned_series
         .chunks()
         .iter()
         .zip(layout_aligned_ca.downcast_iter())
@@ -100,18 +100,22 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
                 offsets_source.clone()
             };
 
-            ListArray::new(
-                DataType::List(Box::new(target_series.dtype().clone()))
-                    .to_arrow(CompatLevel::newest()),
+            Box::new(ListArray::new(
+                target_chunk.dtype().clone().to_large_list(true), // TODO: Nullable?
                 offsets,
                 target_chunk.clone(),
                 layout_chunk.validity().cloned(),
-            )
-        });
+            )) as Box<dyn Array>
+        })
+        .collect();
 
-    let new_ca = ListChunked::from_chunk_iter(target_series.name().clone(), new_chunks_iter);
-
-    Ok(new_ca.into_series())
+    Ok(unsafe {
+        Series::from_chunks_and_dtype_unchecked(
+            target_series.name().clone(),
+            new_chunks,
+            &DataType::List(Box::new(target_series.dtype().clone())),
+        )
+    })
 }
 
 pub fn implode_with_lengths(
@@ -131,6 +135,10 @@ pub fn implode_with_offsets(
     target_series: &Series,
     offsets_series: &Series,
 ) -> PolarsResult<Series> {
+    // TODO: Fix
+    let target_series = target_series.rechunk();
+    let offsets_series = offsets_series.rechunk();
+
     let cast_offsets_series = offsets_series.cast(&DataType::Int64)?;
     let offsets_ca = cast_offsets_series.i64().unwrap();
 
@@ -160,23 +168,27 @@ pub fn implode_with_offsets(
     }
 
     let (offsets_aligned_ca, target_aligned_series) =
-        align_chunks_binary_ca_series(offsets_ca, target_series);
+        align_chunks_binary_ca_series(offsets_ca, &target_series);
 
     let new_chunks_iter = target_aligned_series
         .chunks()
         .iter()
         .zip(offsets_aligned_ca.downcast_iter())
         .map(|(target_chunk, offsets_chunk)| {
-            ListArray::new(
-                DataType::List(Box::new(target_series.dtype().clone()))
-                    .to_arrow(CompatLevel::newest()),
+            Box::new(ListArray::new(
+                target_chunk.dtype().clone().to_large_list(true), // TODO: Nullable?
                 unsafe { OffsetsBuffer::new_unchecked(offsets_chunk.values().clone()) },
                 target_chunk.clone(),
                 offsets_chunk.validity().cloned(),
-            )
+            )) as Box<dyn Array>
         });
 
-    let new_ca = ListChunked::from_chunk_iter(target_series.name().clone(), new_chunks_iter);
-
-    Ok(new_ca.into_series())
+    // TODO: The change was perhaps not required
+    Ok(unsafe {
+        Series::from_chunks_and_dtype_unchecked(
+            target_series.name().clone(),
+            new_chunks_iter.collect(),
+            &DataType::List(Box::new(target_series.dtype().clone())),
+        )
+    })
 }
