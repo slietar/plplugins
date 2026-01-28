@@ -65,57 +65,66 @@ pub fn get_offsets(series: &Series) -> PolarsResult<Series> {
 pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsResult<Series> {
     let layout_ca = layout_series.list()?;
 
-    let (layout_aligned_ca, target_aligned_series) =
-        align_chunks_binary_ca_series(layout_ca, target_series);
-
-    let layout_inner_length = layout_aligned_ca.lst_lengths().sum().unwrap_or(0) as usize;
-
-    if layout_inner_length != target_series.len() {
-        return Err(PolarsError::ShapeMismatch(
-            format!(
-                "Target series length ({}) does not match layout inner length ({})",
-                target_series.len(),
-                layout_inner_length,
-            )
-            .into(),
+    if layout_series.has_nulls() {
+        return Err(PolarsError::ComputeError(
+            "Layout series must not contain null values".into(),
         ));
     }
 
-    let new_chunks = target_aligned_series
-        .chunks()
-        .iter()
-        .zip(layout_aligned_ca.downcast_iter())
-        .map(|(target_chunk, layout_chunk)| {
-            let offsets_source = layout_chunk.offsets();
+    let (target_array, offsets) = 'a: {
+        if target_series.n_chunks() == 1 && layout_ca.n_chunks() == 1 {
+            let first_layout_chunk_offsets = layout_ca.downcast_iter().next().unwrap().offsets();
 
-            let offsets = if offsets_source[0] != 0 {
-                unsafe {
-                    OffsetsBuffer::new_unchecked(Buffer::from_iter(
-                        offsets_source
-                            .iter()
-                            .map(|offset| offset - offsets_source[0]),
-                    ))
-                }
-            } else {
-                offsets_source.clone()
-            };
+            if first_layout_chunk_offsets[0] == 0 {
+                let first_target_chunk = target_series.chunks().first().unwrap();
 
-            Box::new(ListArray::new(
-                target_chunk.dtype().clone().to_large_list(true), // TODO: Nullable?
-                offsets,
-                target_chunk.clone(),
-                layout_chunk.validity().cloned(),
-            )) as Box<dyn Array>
-        })
-        .collect();
+                break 'a (
+                    first_target_chunk.clone(),
+                    first_layout_chunk_offsets.clone(),
+                );
+            }
+        }
 
-    Ok(unsafe {
-        Series::from_chunks_and_dtype_unchecked(
-            target_series.name().clone(),
-            new_chunks,
-            &DataType::List(Box::new(target_series.dtype().clone())),
+        let offsets_iter = std::iter::once(0)
+            .chain(
+                layout_ca
+                    .downcast_iter()
+                    .flat_map(|chunk| chunk.offsets().lengths())
+            )
+            .scan(0, |acc, len| {
+                *acc += len as i64;
+                Some(*acc)
+            });
+
+        let offsets = unsafe {
+            OffsetsBuffer::new_unchecked(Buffer::from_iter(offsets_iter))
+        };
+
+
+        // Some amount of rechunking is required if a chunk boundary falls within a
+        // list. For simplicity, we rechunk the series fully.
+        let target_series_rechunked = target_series.rechunk();
+
+        break 'a (
+            target_series_rechunked.chunks().first().unwrap().clone(),
+            offsets,
         )
-    })
+    };
+
+    let dtype = DataType::List(Box::new(target_series.dtype().clone()));
+
+    let array = ListArray::new(
+        dtype.to_arrow(CompatLevel::newest()),
+        offsets,
+        target_array,
+        None,
+    );
+
+    return Ok(Series::from_chunk_and_dtype(
+        target_series.name().clone(),
+        Box::new(array),
+        &dtype,
+    )?);
 }
 
 pub fn implode_with_lengths(
