@@ -29,7 +29,9 @@ def example1():
         df.select(
             c.a,
             b=plplugins.implode_with_offsets(
-                df["a"].list.explode(),
+                df["a"].list.explode(
+                    empty_as_null=False,
+                ),
                 plplugins.get_offsets(c.a).alias("offsets"),
             )
         )

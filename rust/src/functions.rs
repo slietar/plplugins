@@ -89,17 +89,14 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
             .chain(
                 layout_ca
                     .downcast_iter()
-                    .flat_map(|chunk| chunk.offsets().lengths())
+                    .flat_map(|chunk| chunk.offsets().lengths()),
             )
             .scan(0, |acc, len| {
                 *acc += len as i64;
                 Some(*acc)
             });
 
-        let offsets = unsafe {
-            OffsetsBuffer::new_unchecked(Buffer::from_iter(offsets_iter))
-        };
-
+        let offsets = unsafe { OffsetsBuffer::new_unchecked(Buffer::from_iter(offsets_iter)) };
 
         // Some amount of rechunking is required if a chunk boundary falls within a
         // list. For simplicity, we rechunk the series fully.
@@ -108,13 +105,13 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
         break 'a (
             target_series_rechunked.chunks().first().unwrap().clone(),
             offsets,
-        )
+        );
     };
 
-    let dtype = DataType::List(Box::new(target_series.dtype().clone()));
+    let dtype = target_series.dtype().clone().implode();
 
     let array = ListArray::new(
-        dtype.to_arrow(CompatLevel::newest()),
+        dtype.to_physical().to_arrow(CompatLevel::newest()),
         offsets,
         target_array,
         None,

@@ -71,7 +71,10 @@ fn cast_arr_to_struct_expr(inputs: &[Series]) -> PolarsResult<Series> {
 }
 
 fn implode_output(input_fields: &[Field]) -> PolarsResult<Field> {
-    Ok(input_fields[0].clone())
+    Ok(Field::new(
+        input_fields[0].name().clone(),
+        input_fields[0].dtype().clone().implode(),
+    ))
 }
 
 #[polars_expr(output_type=Int64)]
