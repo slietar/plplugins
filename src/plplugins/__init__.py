@@ -3,31 +3,26 @@ from pathlib import Path
 from typing import Optional, TypeAlias, overload
 
 import polars as pl
-from polars._typing import NonNestedLiteral
+from polars._typing import ColumnNameOrSelector, IntoExpr, NonNestedLiteral
+from polars._utils.parse.expr import parse_into_selector
 from polars.plugins import register_plugin_function
 
-from . import extension # type: ignore
+from . import extension  # type: ignore
 
 
 PLUGIN_PATH = Path(__file__).parent
 
+# Exclude pl.Series from ExprLike to avoid ambiguity in overloads
 ExprLike: TypeAlias = NonNestedLiteral | pl.Expr | str
 NonLiteralExprLike: TypeAlias = pl.Expr | str
 
 
-def to_expr(expr_like: ExprLike, /):
-    if isinstance(expr_like, pl.Expr):
-        return expr_like
-
-    if isinstance(expr_like, str):
-        return pl.col(expr_like)
-
-    return pl.lit(expr_like)
-
-
-def assemble(*exprs: ExprLike | Iterable[ExprLike], **named_exprs: ExprLike):
+def assemble(*exprs: IntoExpr | Iterable[IntoExpr], **named_exprs: IntoExpr):
     return pl.struct(
         *exprs,
+
+        # pl.struct() also accepts particular keyword arguments (e.g. "eager"),
+        # so we need to make sure to not interpret those as fields in the struct
         *(to_expr(expr).alias(name) for name, expr in named_exprs.items()),
     ).struct.unnest()
 
@@ -127,6 +122,40 @@ def implode_like(target: ExprLike | pl.Series, /, layout: ExprLike | pl.Series):
     )
 
 
+def implode_with(
+    inner: IntoExpr,
+    /,
+    *outer: IntoExpr,
+    **named_outer: IntoExpr,
+):
+    inner_expr = to_expr(inner)
+
+    return implode_like(
+        pl.struct(
+            inner_expr.list.explode(
+                empty_as_null=False,
+                keep_nulls=False,
+            ),
+            assemble(*outer, **named_outer)
+                .repeat_by(inner_expr.list.len())
+                .list.explode(
+                    empty_as_null=False,
+                    keep_nulls=False,
+                ),
+        ),
+        layout=inner_expr,
+    )
+
+
+def implode_with_all(inner: ColumnNameOrSelector, /):
+    inner_expr = parse_into_selector(inner)
+
+    return implode_with(
+        inner_expr,
+        ~inner_expr,
+    )
+
+
 @overload
 def implode_with_lengths(target: ExprLike | pl.Series, /, lengths: ExprLike) -> pl.Expr:
     ...
@@ -205,6 +234,16 @@ def struct(*fields: pl.Series | Iterable[pl.Series]):
     return pl.DataFrame(effective_fields).to_struct()
 
 
+def to_expr(expr_like: IntoExpr, /):
+    if isinstance(expr_like, pl.Expr):
+        return expr_like
+
+    if isinstance(expr_like, str):
+        return pl.col(expr_like)
+
+    return pl.lit(expr_like)
+
+
 @overload
 def zip(*targets: pl.Series) -> pl.Series:
     ...
@@ -239,6 +278,8 @@ __all__ = [
     "cast_arr_to_struct",
     "get_offsets",
     "implode_like",
+    "implode_with",
+    "implode_with_all",
     "implode_with_lengths",
     "implode_with_offsets",
     "struct",
