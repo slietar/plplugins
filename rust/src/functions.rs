@@ -1,6 +1,6 @@
 use polars::prelude::*;
 use polars_compute::gather::sublist::fixed_size_list::sub_fixed_size_list_get_literal;
-use pyo3_polars::export::polars_arrow::array::{ListArray, StructArray};
+use pyo3_polars::export::polars_arrow::array::{Int64Array, ListArray, StructArray};
 use pyo3_polars::export::polars_arrow::buffer::Buffer;
 use pyo3_polars::export::polars_arrow::offset::OffsetsBuffer;
 use pyo3_polars::export::polars_core::utils::Container;
@@ -39,27 +39,28 @@ pub fn cast_arr_to_struct(
     Ok(new_ca.into_series())
 }
 
-pub fn get_offsets(series: &Series) -> PolarsResult<Series> {
-    let list = series.list()?;
-    let name = series.name().clone();
+pub fn get_offsets(input_series: &Series) -> PolarsResult<Series> {
+    let list = input_series.list()?;
+    let name = input_series.name().clone();
 
-    if series.n_chunks() == 1 {
+    if input_series.n_chunks() == 1 {
         let first_chunk = list.downcast_iter().next().unwrap();
         let offsets = first_chunk.offsets();
 
         if offsets[0] == 0 {
-            return Ok(Series::new(name, offsets.as_slice()));
+            let array = Int64Array::new(ArrowDataType::Int64, offsets.buffer().clone(), None);
+            return Ok(Int64Chunked::with_chunk(input_series.name().clone(), array).into_series());
         }
     }
 
-    let mut offsets = Series::from_vec(name, vec![0i64]);
+    let mut series = Series::from_vec(name, vec![0i64]);
 
-    offsets.append(&cum_sum(
+    series.append(&cum_sum(
         &Series::new(PlSmallStr::EMPTY, list.lst_lengths()).cast(&DataType::Int64)?,
         false,
     )?)?;
 
-    Ok(offsets)
+    Ok(series)
 }
 
 pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsResult<Series> {
