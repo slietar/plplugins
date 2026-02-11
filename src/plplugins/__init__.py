@@ -15,6 +15,23 @@ ExprLike: TypeAlias = NonNestedLiteral | pl.Expr | str
 NonLiteralExprLike: TypeAlias = pl.Expr | str
 
 
+def to_expr(expr_like: ExprLike, /):
+    if isinstance(expr_like, pl.Expr):
+        return expr_like
+
+    if isinstance(expr_like, str):
+        return pl.col(expr_like)
+
+    return pl.lit(expr_like)
+
+
+def assemble(*exprs: ExprLike | Iterable[ExprLike], **named_exprs: ExprLike):
+    return pl.struct(
+        *exprs,
+        *(to_expr(expr).alias(name) for name, expr in named_exprs.items()),
+    ).struct.unnest()
+
+
 @overload
 def cast_arr_to_struct(target: ExprLike, /, *, dtype: pl.DataTypeExpr | pl.Struct) -> pl.Expr:
     ...
@@ -218,11 +235,13 @@ def zip(*targets: pl.Series | Iterable[pl.Series]):
 
 
 __all__ = [
+    "assemble",
     "cast_arr_to_struct",
     "get_offsets",
     "implode_like",
     "implode_with_lengths",
     "implode_with_offsets",
     "struct",
+    "to_expr",
     "zip",
 ]
