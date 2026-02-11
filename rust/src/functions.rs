@@ -1,9 +1,9 @@
 use polars::prelude::*;
 use polars_compute::gather::sublist::fixed_size_list::sub_fixed_size_list_get_literal;
-use pyo3_polars::export::polars_arrow::array::{Array, ListArray, StructArray};
+use pyo3_polars::export::polars_arrow::array::{ListArray, StructArray};
 use pyo3_polars::export::polars_arrow::buffer::Buffer;
 use pyo3_polars::export::polars_arrow::offset::OffsetsBuffer;
-use pyo3_polars::export::polars_core::utils::{align_chunks_binary_ca_series, Container};
+use pyo3_polars::export::polars_core::utils::Container;
 
 pub fn cast_arr_to_struct(
     target_series: &Series,
@@ -111,7 +111,7 @@ pub fn implode_like(target_series: &Series, layout_series: &Series) -> PolarsRes
     let dtype = target_series.dtype().clone().implode();
 
     let array = ListArray::new(
-        dtype.to_physical().to_arrow(CompatLevel::newest()),
+        target_array.dtype().clone().to_large_list(true),
         offsets,
         target_array,
         None,
@@ -141,7 +141,6 @@ pub fn implode_with_offsets(
     target_series: &Series,
     offsets_series: &Series,
 ) -> PolarsResult<Series> {
-    // TODO: Fix
     let target_series = target_series.rechunk();
     let offsets_series = offsets_series.rechunk();
 
@@ -173,28 +172,19 @@ pub fn implode_with_offsets(
         ));
     }
 
-    let (offsets_aligned_ca, target_aligned_series) =
-        align_chunks_binary_ca_series(offsets_ca, &target_series);
+    let target_array = target_series.chunks().first().unwrap();
+    let offsets_array = offsets_ca.downcast_iter().next().unwrap();
 
-    let new_chunks_iter = target_aligned_series
-        .chunks()
-        .iter()
-        .zip(offsets_aligned_ca.downcast_iter())
-        .map(|(target_chunk, offsets_chunk)| {
-            Box::new(ListArray::new(
-                target_chunk.dtype().clone().to_large_list(true), // TODO: Nullable?
-                unsafe { OffsetsBuffer::new_unchecked(offsets_chunk.values().clone()) },
-                target_chunk.clone(),
-                offsets_chunk.validity().cloned(),
-            )) as Box<dyn Array>
-        });
+    let array = ListArray::new(
+        target_array.dtype().clone().to_large_list(true),
+        unsafe { OffsetsBuffer::new_unchecked(offsets_array.values().clone()) },
+        target_array.clone(),
+        None,
+    );
 
-    // TODO: The change was perhaps not required
-    Ok(unsafe {
-        Series::from_chunks_and_dtype_unchecked(
-            target_series.name().clone(),
-            new_chunks_iter.collect(),
-            &DataType::List(Box::new(target_series.dtype().clone())),
-        )
-    })
+    Ok(Series::from_chunk_and_dtype(
+        target_series.name().clone(),
+        Box::new(array),
+        &target_series.dtype().clone().implode(),
+    )?)
 }
