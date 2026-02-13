@@ -29,7 +29,7 @@ pub fn cast_arr_to_struct(
             arr.len(),
             (0..arr.width())
                 .map(|index| sub_fixed_size_list_get_literal(chunk, index as i64, false).unwrap())
-                .collect::<Vec<_>>(),
+                .collect(),
             chunk.validity().cloned(),
         )
     });
