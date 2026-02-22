@@ -76,7 +76,6 @@ fn cast_arr_to_struct_output(input_fields: &[Field]) -> PolarsResult<Field> {
 
 #[polars_expr(output_type_func=cast_arr_to_struct_output)]
 fn cast_arr_to_struct_expr(inputs: &[Series]) -> PolarsResult<Series> {
-    // TODO: Check number of inputs
     functions::cast_arr_to_struct(&inputs[0], &inputs[1])
 }
 

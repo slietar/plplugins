@@ -39,3 +39,19 @@ print(
         ).struct.unnest()
     )
 )
+
+
+print(
+    df.select(
+        plplugins.cast_arr_to_struct(
+            plplugins.assemble(
+                a=pl.concat_arr(c.x, c.y) * 2,
+                b=pl.concat_arr(c.x, c.y) * 3,
+            ),
+            dtype=pl.Struct([
+                pl.Field("x", pl.Int64),
+                pl.Field("y", pl.Int64),
+            ])
+        )
+    )
+)

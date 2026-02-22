@@ -10,7 +10,7 @@ df = pl.DataFrame({
 })
 
 new_df = df.lazy().select(
-    plplugins.assert_(plplugins.assemble(c.a, c.b), (c.a < 0).alias("a_is_negative")),
+    plplugins.assert_(c.a, [(c.a < 0).alias("a_is_negative")]),
 )
 
 # new_df.show_graph(
@@ -18,7 +18,4 @@ new_df = df.lazy().select(
 #     plan_stage="physical",
 # )
 
-# print(new_df)
-# print()
-# print()
 print(new_df.collect())
