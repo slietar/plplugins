@@ -27,6 +27,16 @@ def assemble(*exprs: IntoExpr | Iterable[IntoExpr], **named_exprs: IntoExpr):
     ).struct.unnest()
 
 
+def assert_(*exprs: IntoExpr | Iterable[IntoExpr]):
+    return register_plugin_function(
+        plugin_path=PLUGIN_PATH,
+        function_name="assert_expr",
+        args=exprs,
+        is_elementwise=True,
+        changes_length=False,
+    )
+
+
 @overload
 def cast_arr_to_struct(target: ExprLike, /, *, dtype: pl.DataTypeExpr | pl.Struct) -> pl.Expr:
     ...
@@ -84,6 +94,7 @@ def get_offsets(target: ExprLike, /) -> pl.Expr:
 def get_offsets(target: pl.Series, /) -> pl.Series:
     ...
 
+# TODO: Optimize
 def get_offsets(target: ExprLike | pl.Series, /):
     if isinstance(target, pl.Series):
         return extension.get_offsets(target)
@@ -275,13 +286,14 @@ def zip(*targets: pl.Series | Iterable[pl.Series]):
 
 __all__ = [
     "assemble",
+    "assert_",
     "cast_arr_to_struct",
     "get_offsets",
     "implode_like",
-    "implode_with",
     "implode_with_all",
     "implode_with_lengths",
     "implode_with_offsets",
+    "implode_with",
     "struct",
     "to_expr",
     "zip",

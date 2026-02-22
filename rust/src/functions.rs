@@ -5,6 +5,20 @@ use pyo3_polars::export::polars_arrow::buffer::Buffer;
 use pyo3_polars::export::polars_arrow::offset::OffsetsBuffer;
 use pyo3_polars::export::polars_core::utils::Container;
 
+pub fn assert(series_list: &[Series]) -> PolarsResult<Series> {
+    for series in &series_list[1..] {
+        if !series.bool()?.all() {
+            return Err(PolarsError::ComputeError(format!(
+                "Assertion failed: Series '{}' contains false values",
+                series.name()
+            ).into()));
+        }
+    }
+
+    // Ok(Series::from_vec(PlSmallStr::EMPTY, Vec::<i64>::new()))
+    Ok(series_list[0].clone())
+}
+
 pub fn cast_arr_to_struct(
     target_series: &Series,
     struct_like_series: &Series,
